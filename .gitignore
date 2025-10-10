@@ -2,6 +2,11 @@
 .DS_Store
 Thumbs.db
 *.log
+*.bak
+*.tmp
+*.swp
+*.swo
+*.orig
 !.keep
 
 # Python / FastAPI backend
@@ -51,8 +56,8 @@ backend/.ruff_cache/
 backend/.coverage
 backend/htmlcov/
 backend/.venv/
-.backend_uvicorn.log
-.frontend_ssr.log
+*.backend_uvicorn.log
+*.frontend_ssr.log
 
 # IDE / Editor
 .idea/
@@ -66,9 +71,12 @@ backend/.venv/
 .classpath
 .c9/
 .settings/
+*.code-workspace
 
 # Temporary or generated documents
 *.tmp
 *.swp
 *.swo
 *.orig
+*~
+.history/
