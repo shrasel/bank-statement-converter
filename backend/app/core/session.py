@@ -111,13 +111,12 @@ class SessionManager:
         response.delete_cookie(self.cookie_name)
 
     def _set_cookie(self, response: Response, session_id: str) -> None:
+        # For local development: minimal cookie settings to work around browser restrictions
         response.set_cookie(
             key=self.cookie_name,
             value=session_id,
-            httponly=True,
-            samesite="lax",
+            path="/",
             max_age=self.cookie_max_age,
-            secure=False,
         )
 
 
