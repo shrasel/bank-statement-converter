@@ -1,0 +1,292 @@
+<div class="app-gradient min-h-screen pb-24">
+	<header class="relative">
+		<div class="mx-auto flex max-w-7xl flex-col gap-6 px-6 pt-16 lg:pt-24">
+			<div class="max-w-3xl">
+				<p class="text-sm uppercase tracking-[0.35em] text-primary-300/80">Transaction Inspector</p>
+				<h1 class="mt-4 text-4xl font-bold leading-tight text-white sm:text-5xl">
+					Review your statement
+				</h1>
+				<p class="mt-5 text-lg leading-relaxed text-slate-300">
+					Compare the original PDF with extracted transactions. Select the ones you want to keep.
+				</p>
+			</div>
+
+			<div class="flex flex-wrap gap-3">
+				<button
+					type="button"
+					class="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white transition hover:border-primary-300/70 hover:text-primary-200"
+					(click)="toggleSelectAll()"
+				>
+					<span *ngIf="selectAll">☐</span>
+					<span *ngIf="!selectAll">☑</span>
+					<span>{{ selectAll ? 'Deselect All' : 'Select All' }}</span>
+				</button>
+				<button
+					type="button"
+					class="inline-flex items-center gap-2 rounded-full bg-primary-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
+					(click)="confirmSelection()"
+					[disabled]="isSubmitting || selectedCount === 0"
+				>
+					<span *ngIf="!isSubmitting">✓</span>
+					<span *ngIf="isSubmitting" class="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+					<span *ngIf="!isSubmitting">Confirm {{ selectedCount }} Transaction{{ selectedCount === 1 ? '' : 's' }}</span>
+					<span *ngIf="isSubmitting">Saving...</span>
+				</button>
+				<button
+					type="button"
+					class="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-2 text-sm font-semibold text-slate-300 transition hover:border-white/30 hover:text-white"
+					(click)="cancel()"
+					[disabled]="isSubmitting"
+				>
+					<span>✕</span>
+					<span>Cancel</span>
+				</button>
+			</div>
+		</div>
+	</header>
+
+	<main class="mx-auto mt-8 flex max-w-7xl flex-col gap-6 px-6 pb-24">
+		<div *ngIf="errorMessage" class="flex items-start gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/15 p-4 text-sm text-rose-100">
+			<span class="text-lg">⚠️</span>
+			<span>{{ errorMessage }}</span>
+		</div>
+
+		<div *ngIf="warnings.length > 0" class="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+			<h3 class="font-semibold text-amber-100">Parsing warnings ({{ warnings.length }}):</h3>
+			<ul class="mt-2 space-y-1">
+				<li *ngFor="let warning of warnings">• {{ warning }}</li>
+			</ul>
+		</div>
+
+		<!-- Full-width PDF Content -->
+		<section class="rounded-3xl border border-white/10 bg-slate-900/80 shadow-xl shadow-primary-900/20">
+			<div class="border-b border-white/10 px-6 py-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<h2 class="text-xl font-semibold text-white">PDF Content</h2>
+						<p class="text-sm text-slate-400">Original document layout preserved</p>
+					</div>
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							(click)="previousPage()"
+							[disabled]="!hasPreviousPage"
+							class="rounded-lg border border-white/20 bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+						>
+							← Prev
+						</button>
+						<span class="text-sm text-slate-300">Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+						<button
+							type="button"
+							(click)="nextPage()"
+							[disabled]="!hasNextPage"
+							class="rounded-lg border border-white/20 bg-slate-800 px-3 py-1.5 text-sm text-white transition hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+						>
+							Next →
+						</button>
+					</div>
+				</div>
+			</div>
+			<div class="p-6">
+				<div class="rounded-xl overflow-hidden bg-white border border-slate-200" style="min-height: 800px; max-height: 1000px;">
+					<div *ngIf="pdfPages.length > 0" class="w-full h-full flex items-start justify-center p-6 overflow-auto">
+						<div class="inline-block max-w-full" [innerHTML]="currentPageHtml"></div>
+					</div>
+					<div *ngIf="pdfPages.length === 0" class="flex items-center justify-center h-full min-h-[800px] text-slate-400">
+						<div class="text-center">
+							<span class="inline-flex h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></span>
+							<p class="mt-4 text-slate-600">Converting PDF to HTML...</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Smart Detected Transactions - Editable Table -->
+		<section *ngIf="showDetectedTable && detectedTransactions.length > 0" class="rounded-3xl border border-white/10 bg-slate-900/80 shadow-xl shadow-primary-900/20 mt-6">
+			<div class="border-b border-white/10 px-6 py-4">
+				<div class="flex items-center justify-between">
+					<div>
+						<h2 class="text-xl font-semibold text-white">🤖 Smart Detected Transactions</h2>
+						<p class="text-sm text-slate-400">{{ confirmedCount }} of {{ detectedTransactions.length }} selected • Edit and confirm to proceed</p>
+					</div>
+					<div class="flex gap-2">
+						<button
+							type="button"
+							class="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:border-primary-300/70"
+							(click)="toggleAllDetected()"
+						>
+							<span>☑</span>
+							<span>Toggle All</span>
+						</button>
+						<button
+							type="button"
+							class="inline-flex items-center gap-2 rounded-full bg-primary-500 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-500/30 transition hover:bg-primary-400 disabled:opacity-50 disabled:cursor-not-allowed"
+							(click)="confirmDetectedTransactions()"
+							[disabled]="isSubmitting || confirmedCount === 0"
+						>
+							<span *ngIf="!isSubmitting">✓</span>
+							<span *ngIf="isSubmitting" class="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+							<span *ngIf="!isSubmitting">Confirm {{ confirmedCount }} Transaction{{ confirmedCount === 1 ? '' : 's' }}</span>
+							<span *ngIf="isSubmitting">Processing...</span>
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="overflow-hidden">
+				<div class="max-h-[600px] overflow-auto">
+					<table class="min-w-full divide-y divide-white/10 text-sm text-slate-200">
+						<thead class="sticky top-0 bg-slate-900/95 text-left text-xs font-semibold uppercase tracking-wide text-slate-300 backdrop-blur-sm">
+							<tr>
+								<th scope="col" class="px-4 py-3 w-12">Select</th>
+								<th scope="col" class="px-4 py-3 w-20">Confidence</th>
+								<th scope="col" class="px-4 py-3 w-32">Date</th>
+								<th scope="col" class="px-4 py-3">Description</th>
+								<th scope="col" class="px-4 py-3 w-28 text-right">Debit</th>
+								<th scope="col" class="px-4 py-3 w-28 text-right">Credit</th>
+								<th scope="col" class="px-4 py-3 w-28 text-right">Balance</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-white/5">
+							<tr
+								*ngFor="let txn of detectedTransactions; let i = index"
+								class="transition"
+								[ngClass]="{
+									'bg-primary-500/10': txn.is_confirmed,
+									'hover:bg-white/5': !txn.is_confirmed
+								}"
+							>
+								<td class="whitespace-nowrap px-4 py-3">
+									<input
+										type="checkbox"
+										[(ngModel)]="txn.is_confirmed"
+										class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0"
+									/>
+								</td>
+								<td class="whitespace-nowrap px-4 py-3">
+									<span class="inline-flex items-center gap-1 text-xs font-medium" [ngClass]="getConfidenceColor(txn.confidence)">
+										<span class="inline-block h-2 w-2 rounded-full" [ngClass]="getConfidenceColor(txn.confidence).replace('text-', 'bg-')"></span>
+										{{ getConfidenceLabel(txn.confidence) }}
+									</span>
+								</td>
+								<td class="whitespace-nowrap px-4 py-3">
+									<input
+										type="text"
+										[(ngModel)]="txn.date"
+										placeholder="MM/DD/YYYY"
+										class="w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+									/>
+								</td>
+								<td class="px-4 py-3">
+									<input
+										type="text"
+										[(ngModel)]="txn.description"
+										placeholder="Description"
+										class="w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+									/>
+								</td>
+								<td class="whitespace-nowrap px-4 py-3 text-right">
+									<input
+										type="text"
+										[(ngModel)]="txn.debit"
+										placeholder="0.00"
+										class="w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-right text-xs text-rose-200 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+									/>
+								</td>
+								<td class="whitespace-nowrap px-4 py-3 text-right">
+									<input
+										type="text"
+										[(ngModel)]="txn.credit"
+										placeholder="0.00"
+										class="w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-right text-xs text-emerald-200 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+									/>
+								</td>
+								<td class="whitespace-nowrap px-4 py-3 text-right">
+									<input
+										type="text"
+										[(ngModel)]="txn.balance"
+										placeholder="0.00"
+										class="w-full rounded border border-slate-600 bg-slate-800 px-2 py-1 text-right text-xs text-slate-200 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+									/>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</section>
+
+		<!-- Original Transactions Table - Shown if no detected transactions -->
+		<section *ngIf="!showDetectedTable && transactions.length > 0" class="rounded-3xl border border-white/10 bg-slate-900/80 shadow-xl shadow-primary-900/20 mt-6">
+			<div class="border-b border-white/10 px-6 py-4">
+				<h2 class="text-xl font-semibold text-white">Extracted Transactions</h2>
+				<p class="text-sm text-slate-400">{{ selectedCount }} of {{ transactions.length }} selected</p>
+			</div>
+
+				<div class="overflow-hidden">
+					<div class="max-h-[700px] overflow-auto">
+						<table class="min-w-full divide-y divide-white/10 text-sm text-slate-200">
+							<thead class="sticky top-0 bg-slate-900/95 text-left text-xs font-semibold uppercase tracking-wide text-slate-300 backdrop-blur-sm">
+								<tr>
+									<th scope="col" class="px-4 py-3 w-12">
+										<input
+											type="checkbox"
+											[checked]="selectAll"
+											(change)="toggleSelectAll()"
+											class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0"
+										/>
+									</th>
+									<th scope="col" class="px-4 py-3">Date</th>
+									<th scope="col" class="px-4 py-3">Description</th>
+									<th scope="col" class="px-4 py-3 text-right">Debit</th>
+									<th scope="col" class="px-4 py-3 text-right">Credit</th>
+									<th scope="col" class="px-4 py-3 text-right">Balance</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-white/5">
+								<tr
+									*ngFor="let txn of transactions"
+									class="cursor-pointer transition"
+									[ngClass]="{
+										'bg-primary-500/10 hover:bg-primary-500/15': isSelected(txn.id),
+										'hover:bg-white/5': !isSelected(txn.id),
+										'bg-amber-500/5': txn.warnings.length > 0
+									}"
+									(click)="toggleTransaction(txn.id)"
+								>
+									<td class="whitespace-nowrap px-4 py-3">
+										<input
+											type="checkbox"
+											[checked]="isSelected(txn.id)"
+											(click)="$event.stopPropagation()"
+											(change)="toggleTransaction(txn.id)"
+											class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-0"
+										/>
+									</td>
+									<td class="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-300">
+										{{ txn.date | date: 'MMM d, yyyy' }}
+									</td>
+									<td class="px-4 py-3 text-sm text-white">
+										<span class="block break-words line-clamp-2">{{ txn.description }}</span>
+										<span *ngIf="txn.warnings.length > 0" class="mt-1 block text-xs text-amber-200">
+											⚠️ {{ txn.warnings.join(', ') }}
+										</span>
+									</td>
+									<td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium" [class.text-rose-200]="txn.debit">
+										{{ formatAmount(txn.debit) }}
+									</td>
+									<td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium" [class.text-emerald-200]="txn.credit">
+										{{ formatAmount(txn.credit) }}
+									</td>
+									<td class="whitespace-nowrap px-4 py-3 text-right text-sm text-slate-200">
+										{{ formatAmount(txn.balance) }}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+	</main>
+</div>
