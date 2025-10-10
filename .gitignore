@@ -1,0 +1,74 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+!.keep
+
+# Python / FastAPI backend
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+*.egg
+.env
+.env.*
+!.env.example
+.venv/
+.python-version
+pytest-debug.log
+.pytest_cache/
+.mypy_cache/
+ruff_cache/
+.coverage
+coverage/
+htmlcov/
+.tox/
+.cache/
+
+# Node / Angular frontend
+frontend/node_modules/
+frontend/dist/
+frontend/tmp/
+frontend/out-tsc/
+frontend/bazel-out/
+frontend/.angular/cache/
+frontend/.sass-cache/
+frontend/connect.lock
+frontend/coverage/
+frontend/libpeerconnection.log
+frontend/testem.log
+frontend/typings/
+frontend/.history/
+
+# Build & runtime artifacts
+backend/.pytest_cache/
+backend/__pycache__/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.venv/
+.backend_uvicorn.log
+.frontend_ssr.log
+
+# IDE / Editor
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+.project
+.classpath
+.c9/
+.settings/
+
+# Temporary or generated documents
+*.tmp
+*.swp
+*.swo
+*.orig
